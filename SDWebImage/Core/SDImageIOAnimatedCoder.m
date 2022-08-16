@@ -19,7 +19,7 @@ static NSString * kSDCGImageSourceRasterizationDPI = @"kCGImageSourceRasterizati
 // Specify File Size for lossy format encoding, like JPEG
 static NSString * kSDCGImageDestinationRequestedFileSize = @"kCGImageDestinationRequestedFileSize";
 
-NSLock *kSDImageIOCoderLock;
+NSLock *kSDImageIOCoderLock API_AVAILABLE(ios(15));
 
 @interface SDImageIOCoderFrame : NSObject
 
@@ -191,12 +191,13 @@ NSLock *kSDImageIOCoderLock;
 
 + (UIImage *)createFrameAtIndex:(NSUInteger)index source:(CGImageSourceRef)source scale:(CGFloat)scale preserveAspectRatio:(BOOL)preserveAspectRatio thumbnailSize:(CGSize)thumbnailSize options:(NSDictionary *)options {
     
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        kSDImageIOCoderLock = [[NSLock alloc] init];
-    });
-
-    [kSDImageIOCoderLock lock];
+    if (@available(iOS 15, tvOS 15, *)) {
+        static dispatch_once_t onceToken;
+        dispatch_once(&onceToken, ^{
+            kSDImageIOCoderLock = [[NSLock alloc] init];
+        });
+        [kSDImageIOCoderLock lock];
+    }
     
     // Some options need to pass to `CGImageSourceCopyPropertiesAtIndex` before `CGImageSourceCreateImageAtIndex`, or ImageIO will ignore them because they parse once :)
     // Parse the image properties
@@ -237,7 +238,9 @@ NSLock *kSDImageIOCoderLock;
         imageRef = CGImageSourceCreateThumbnailAtIndex(source, index, (__bridge CFDictionaryRef)[decodingOptions copy]);
     }
     if (!imageRef) {
-        [kSDImageIOCoderLock unlock];
+        if (@available(iOS 15, tvOS 15, *)) {
+            [kSDImageIOCoderLock unlock];
+        }
         return nil;
     }
     // Thumbnail image post-process
@@ -260,7 +263,9 @@ NSLock *kSDImageIOCoderLock;
     UIImage *image = [[UIImage alloc] initWithCGImage:imageRef scale:scale orientation:exifOrientation];
 #endif
     CGImageRelease(imageRef);
-    [kSDImageIOCoderLock unlock];
+    if (@available(iOS 15, tvOS 15, *)) {
+        [kSDImageIOCoderLock unlock];
+    }
     return image;
 }
 
